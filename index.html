@@ -52,15 +52,23 @@
             font-weight: 700;
             transition: all 0.2s;
             box-shadow: 0 8px 16px rgba(0, 80, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .btn-submit:active {
+        .btn-submit:disabled {
+            background-color: #ADB5BD;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .btn-submit:not(:disabled):active {
             transform: scale(0.96);
             background-color: #0045DB;
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 모달 스타일 */
+        /* Modal Styles */
         #success-modal {
             display: none;
             position: fixed;
@@ -70,6 +78,21 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #fff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -86,7 +109,7 @@
 
     <!-- MAIN CONTENT -->
     <main id="app-content" class="pt-20 pb-10 px-5 max-w-md mx-auto min-h-screen">
-        <!-- JS Renders Content Here -->
+        <!-- Content will be injected here via JS -->
     </main>
 
     <!-- SUCCESS MODAL -->
@@ -102,6 +125,11 @@
     </div>
 
     <script>
+        /**
+         * 구글 앱스 스크립트 웹 앱 URL 적용 완료
+         */
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxkQ4ZxJ-YTC92XFkVJ8D5mHEKHsXs6o0uOEFq7bF36jmT70_KEcWvTfYjTnYO92Y2WPg/exec';
+        
         let currentLang = 'ko';
 
         const i18n = {
@@ -115,9 +143,11 @@
                     phonePlaceholder: "숫자만 입력해주세요",
                     agree: "개인정보 수집 및 이용에 동의합니다",
                     submit: "상담 신청하기",
+                    submitting: "신청 중...",
                     modalTitle: "신청이 완료되었습니다",
                     modalDesc: "담당자가 확인 후 순차적으로 연락드릴 예정입니다. 감사합니다.",
-                    modalClose: "확인"
+                    modalClose: "확인",
+                    error: "오류가 발생했습니다. 다시 시도해 주세요."
                 },
                 footer: { 
                     company: "P&P Partners Co.,LTD", 
@@ -138,9 +168,11 @@
                     phonePlaceholder: "Введите только цифры",
                     agree: "Я согласен на обработку личных данных",
                     submit: "Оставить заявку",
+                    submitting: "Отправка...",
                     modalTitle: "Заявка принята",
                     modalDesc: "Наш специалист свяжется с вами в ближайшее время. Благодарим вас.",
-                    modalClose: "Закрыть"
+                    modalClose: "Закрыть",
+                    error: "Произошла ошибка. Попробуйте еще раз."
                 },
                 footer: { 
                     company: "P&P Partners Co.,LTD", 
@@ -169,18 +201,43 @@
             render();
         }
 
-        function handleSubmit(e) {
+        async function handleSubmit(e) {
             e.preventDefault();
-            const name = document.getElementById('customer-name').value;
-            const phone = document.getElementById('customer-phone').value;
-            
-            if(!name || !phone) return;
-
-            // 로직: 수집 데이터 출력 (실제 운영 시 API 연동)
-            console.log("DB Collected:", { name, phone, lang: currentLang });
-
-            // 모달 업데이트 및 표시
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]');
             const t = i18n[currentLang].landing;
+
+            // 로딩 상태 시작
+            btn.disabled = true;
+            btn.innerHTML = `<div class="spinner"></div> ${t.submitting}`;
+
+            const formData = new FormData(form);
+            formData.append('date', new Date().toLocaleString('ko-KR'));
+            formData.append('lang', currentLang);
+
+            try {
+                // 구글 앱스 스크립트로 데이터 전송
+                await fetch(scriptURL, { 
+                    method: 'POST', 
+                    body: formData,
+                    mode: 'no-cors' 
+                });
+
+                // 성공 모달 표시
+                showSuccessModal(t);
+                form.reset();
+
+            } catch (error) {
+                console.error('Error!', error.message);
+                alert(t.error);
+            } finally {
+                // 로딩 상태 종료
+                btn.disabled = false;
+                btn.innerHTML = t.submit;
+            }
+        }
+
+        function showSuccessModal(t) {
             document.getElementById('modal-title').innerText = t.modalTitle;
             document.getElementById('modal-desc').innerText = t.modalDesc;
             document.getElementById('modal-close-btn').innerText = t.modalClose;
@@ -189,7 +246,6 @@
 
         function closeModal() {
             document.getElementById('success-modal').style.display = 'none';
-            document.getElementById('db-form').reset();
         }
 
         function render() {
@@ -199,8 +255,8 @@
 
             container.innerHTML = `
                 <div class="animate-fade">
-                    <div class="rounded-[30px] overflow-hidden mb-8 shadow-sm">
-                        <img src="https://iili.io/fiDO3CP.png" class="w-full" alt="Counseling Hero">
+                    <div class="rounded-[30px] overflow-hidden mb-8 shadow-sm text-center">
+                        <img src="https://iili.io/fiDO3CP.png" class="w-full mx-auto" alt="Counseling Hero">
                     </div>
 
                     <div class="mb-10 text-center px-2">
@@ -211,11 +267,11 @@
                     <form id="db-form" onsubmit="handleSubmit(event)" class="space-y-6 bg-white p-6 rounded-[30px] border border-gray-100 shadow-sm">
                         <div>
                             <label class="block text-sm font-bold text-[#4E5968] mb-2 ml-1">${L.nameLabel}</label>
-                            <input type="text" id="customer-name" class="input-field" placeholder="${L.namePlaceholder}" required>
+                            <input type="text" name="name" class="input-field" placeholder="${L.namePlaceholder}" required>
                         </div>
                         <div>
                             <label class="block text-sm font-bold text-[#4E5968] mb-2 ml-1">${L.phoneLabel}</label>
-                            <input type="tel" id="customer-phone" class="input-field" placeholder="${L.phonePlaceholder}" required>
+                            <input type="tel" name="phone" class="input-field" placeholder="${L.phonePlaceholder}" required>
                         </div>
                         <div class="flex items-center space-x-3 py-2 px-1">
                             <input type="checkbox" id="agree" class="w-5 h-5 rounded-md border-gray-300 text-[#0050FF] focus:ring-[#0050FF]" required>
@@ -235,7 +291,6 @@
                 </div>
             `;
             
-            // Lucide 아이콘 재생성
             lucide.createIcons();
         }
 
