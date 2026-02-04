@@ -210,9 +210,6 @@
             params.append('phone', form.phone.value);
             params.append('date', new Date().toLocaleString('ko-KR'));
             params.append('lang', currentLang);
-            
-            // ⭐ 이 부분이 누락되어 'unknown'으로 나왔던 것입니다. 
-            // pps2 페이지라면 'pps2', pps3 페이지라면 'pps3'로 수정해서 업로드하세요.
             params.append('site', 'pps1');
 
             try {
@@ -299,4 +296,5 @@
         };
     </script>
 </body>
+
 </html>
